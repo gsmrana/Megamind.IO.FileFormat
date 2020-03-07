@@ -106,7 +106,11 @@ namespace Megamind.IO.FileFormat
         {
             var toolfullname = Path.Combine(CmdlineToolPath, toolname);
             if (!File.Exists(toolfullname))
-                toolfullname = toolname;
+            {
+                if (File.Exists(toolname))
+                    toolfullname = toolname;
+                else throw new Exception(toolname + " - cmdline tool not found!");
+            }                
             return toolfullname;
         }
 
