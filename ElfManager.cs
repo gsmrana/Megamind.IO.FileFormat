@@ -11,57 +11,81 @@ namespace Megamind.IO.FileFormat
     {
         #region Data
 
-        readonly string _filename;
+        readonly string _sourcefilename;
         readonly StringBuilder _response = new StringBuilder();
 
         #endregion
 
         #region Properties
 
-        public string CmdlineToolPath { get; set; } = "";
-        public string Objcopy { get; set; } = "arm-none-eabi-objcopy.exe";
-        public string Objdump { get; set; } = "arm-none-eabi-objdump.exe";
-        public string Readelf { get; set; } = "arm-none-eabi-readelf.exe";
+        public static string CmdlineToolPath { get; set; } = "";
+        public static int CmdlineExecTimeoutSec { get; set; } = 5;
+
+        public static string Readelf { get; set; } = "arm-none-eabi-readelf.exe";
+        public static string Objcopy { get; set; } = "arm-none-eabi-objcopy.exe";
+        public static string Objdump { get; set; } = "arm-none-eabi-objdump.exe";
+
+        public static readonly Dictionary<string, string> CmdLineTools = new Dictionary<string, string>()
+        {
+            { "readelf", Readelf },
+            { "objcopy", Objcopy },
+            { "objdump", Objdump },
+        };
 
         #endregion
 
         #region ctor
 
-        public ElfManager(string filename, string toolpath = "")
+        public ElfManager(string filename = "")
         {
-            _filename = filename;
-            CmdlineToolPath = toolpath;
+            _sourcefilename = filename;
         }
 
         #endregion
 
         #region Public Methods
 
-        public string GetHeaders()
+        public string GetAllHeadersInfo()
         {
             _response.Clear();
-            ExecuteCommandLine(Readelf, string.Format(" -h -l -S \"{0}\"", _filename));
+            ExecuteCommandLine(Readelf, string.Format(" -all \"{0}\"", _sourcefilename));
             return _response.ToString();
         }
 
-        public string GetAllInfo()
+        readonly Dictionary<string, string> ExtToFileType = new Dictionary<string, string>
         {
+            { ".bin", "binary" },
+            { ".hex", "ihex" },
+            { ".srec", "srec" },
+        };
+
+        public string SaveOutputFile(string outputfilename)
+        {
+            var inext = Path.GetExtension(_sourcefilename).ToLower();
+            var outext = Path.GetExtension(outputfilename).ToLower();          
+            var outputtype = ExtToFileType[outext];
+            var inputtype = "";
+            if (ExtToFileType.ContainsKey(inext))
+                inputtype = " -I " + ExtToFileType[inext];
+
             _response.Clear();
-            ExecuteCommandLine(Readelf, string.Format(" -all \"{0}\"", _filename));
+            ExecuteCommandLine(Objcopy, string.Format("{0} -O {1} \"{2}\" \"{3}\" -v", inputtype, outputtype, _sourcefilename, outputfilename));
             return _response.ToString();
         }
 
-        public string ObjDump()
+        public string GetDisassemblyText()
         {
             _response.Clear();
-            ExecuteCommandLine(Objdump, string.Format(" \"{0}\"", _filename));
+            ExecuteCommandLine(Objdump, string.Format(" -d -S \"{0}\"", _sourcefilename));
             return _response.ToString();
         }
 
-        public string ObjCopy()
+        public string ExecuteCommandline(string toolname, string cmdline)
         {
+            if (CmdLineTools.ContainsKey(toolname))
+                toolname = CmdLineTools[toolname];
             _response.Clear();
-            ExecuteCommandLine(Objcopy, string.Format(" \"{0}\"", _filename));
+            ExecuteCommandLine(toolname, cmdline);
             return _response.ToString();
         }
 
@@ -69,15 +93,18 @@ namespace Megamind.IO.FileFormat
 
         #region Private Methods
 
-        private void ExecuteCommandLine(string toolname, string args, int timeout = 5)
+        private string FindToolFullname(string toolname)
         {
-            var toolfullpath = Path.Combine(CmdlineToolPath, toolname);
-            if (!File.Exists(toolfullpath))
-            {
-                throw new Exception(toolname + " - cmdline tool not found!");
-            }
+            var toolfullname = Path.Combine(CmdlineToolPath, toolname);
+            if (!File.Exists(toolfullname))
+                toolfullname = toolname;
+            return toolfullname;
+        }
 
-            var startInfo = new ProcessStartInfo(toolfullpath)
+        private void ExecuteCommandLine(string toolname, string args)
+        {
+            var toolfullname = FindToolFullname(toolname);
+            var startInfo = new ProcessStartInfo(toolfullname)
             {
                 CreateNoWindow = true,
                 UseShellExecute = false,
@@ -95,12 +122,11 @@ namespace Megamind.IO.FileFormat
             process.BeginErrorReadLine();
             process.BeginOutputReadLine();
 
-            var sw = new Stopwatch();
-            sw.Start();
+            var starttime = DateTime.Now; 
             while (!process.HasExited)
             {
                 Thread.Sleep(500);
-                if (sw.Elapsed.Seconds > timeout)
+                if (DateTime.Now.Subtract(starttime).TotalSeconds > CmdlineExecTimeoutSec)
                 {
                     process.Kill();
                     throw new Exception("CLI Execution Timeout!");
