@@ -24,12 +24,14 @@ namespace Megamind.IO.FileFormat
         public static string Readelf { get; set; } = "arm-none-eabi-readelf.exe";
         public static string Objcopy { get; set; } = "arm-none-eabi-objcopy.exe";
         public static string Objdump { get; set; } = "arm-none-eabi-objdump.exe";
+        public static string Sizetool { get; set; } = "arm-none-eabi-size.exe";
 
         public static readonly Dictionary<string, string> CmdLineTools = new Dictionary<string, string>()
         {
             { "readelf", Readelf },
             { "objcopy", Objcopy },
             { "objdump", Objdump },
+            { "size", Sizetool },
         };
 
         #endregion
@@ -77,6 +79,13 @@ namespace Megamind.IO.FileFormat
         {
             _response.Clear();
             ExecuteCommandLine(Objdump, string.Format(" -d -S \"{0}\"", _sourcefilename));
+            return _response.ToString();
+        }
+
+        public string GetSizeInfo()
+        {
+            _response.Clear();
+            ExecuteCommandLine(Sizetool, string.Format(" \"{0}\"", _sourcefilename));
             return _response.ToString();
         }
 
