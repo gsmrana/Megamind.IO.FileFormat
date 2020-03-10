@@ -19,7 +19,7 @@ namespace Megamind.IO.FileFormat
         #region Properties
 
         public static string CmdlineToolPath { get; set; } = "";
-        public static int CmdlineExecTimeoutSec { get; set; } = 5;
+        public static int CmdlineExecTimeoutSec { get; set; } = 10;
 
         public static string Readelf { get; set; } = "arm-none-eabi-readelf.exe";
         public static string Objcopy { get; set; } = "arm-none-eabi-objcopy.exe";
