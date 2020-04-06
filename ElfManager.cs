@@ -64,7 +64,7 @@ namespace Megamind.IO.FileFormat
         public string SaveOutputFile(string outputfilename)
         {
             var inext = Path.GetExtension(_sourcefilename).ToLower();
-            var outext = Path.GetExtension(outputfilename).ToLower();          
+            var outext = Path.GetExtension(outputfilename).ToLower();
             var outputtype = ExtToFileType[outext];
             var inputtype = "";
             if (ExtToFileType.ContainsKey(inext))
@@ -78,7 +78,11 @@ namespace Megamind.IO.FileFormat
         public string GetDisassemblyText()
         {
             _response.Clear();
-            ExecuteCommandLine(Objdump, string.Format(" -d -S \"{0}\"", _sourcefilename));
+
+            var ext = Path.GetExtension(_sourcefilename);
+            if (string.Compare(ext, ".hex", true) == 0 || string.Compare(ext, ".bin", true) == 0)
+                ExecuteCommandLine(Objdump, string.Format(" -x -s \"{0}\"", _sourcefilename));
+            else ExecuteCommandLine(Objdump, string.Format(" -d -S \"{0}\"", _sourcefilename));
             return _response.ToString();
         }
 
@@ -110,7 +114,7 @@ namespace Megamind.IO.FileFormat
                 if (File.Exists(toolname))
                     toolfullname = toolname;
                 else throw new Exception(toolname + " - cmdline tool not found!");
-            }                
+            }
             return toolfullname;
         }
 
@@ -135,7 +139,7 @@ namespace Megamind.IO.FileFormat
             process.BeginErrorReadLine();
             process.BeginOutputReadLine();
 
-            var starttime = DateTime.Now; 
+            var starttime = DateTime.Now;
             while (!process.HasExited)
             {
                 Thread.Sleep(500);
